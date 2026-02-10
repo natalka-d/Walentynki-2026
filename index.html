@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moja Walentynka ❤️</title>
+    <style>
+        :root { --pink: #ff4d6d; --light-pink: #fff0f3; --dark-pink: #c9184a; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light-pink); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden; padding-bottom: 50px; }
+        
+        h1 { color: var(--pink); text-align: center; margin: 20px; font-size: 1.5rem; }
+
+        .hearts { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+        .heart { position: absolute; color: var(--pink); opacity: 0.6; animation: float 5s infinite linear; }
+        @keyframes float { 0% { transform: translateY(100vh) rotate(0deg); } 100% { transform: translateY(-10vh) rotate(360deg); } }
+
+        #puzzle-board { 
+            display: grid; 
+            grid-template-columns: repeat(3, 100px); 
+            grid-template-rows: repeat(3, 100px); 
+            gap: 2px; 
+            border: 4px solid var(--pink); 
+            background: var(--pink); 
+            margin-top: 20px; 
+            transition: all 0.5s ease;
+        }
+        #puzzle-board.won { gap: 0; border-color: transparent; box-shadow: 0 10px 30px rgba(255, 77, 109, 0.3); margin-bottom: 20px; }
+
+        .piece { width: 100px; height: 100px; background-image: url('puzzel.jpg'); background-size: 300px 300px; cursor: pointer; }
+
+        #win-message { display: none; color: var(--pink); font-size: 2.2rem; font-weight: bold; margin: 20px 0; text-align: center; animation: heartBeat 1.2s infinite; }
+        @keyframes heartBeat { 0% { transform: scale(1); } 14% { transform: scale(1.05); } 28% { transform: scale(1); } }
+
+        /* KOŁO FORTUNY */
+        #draw-section { display: none; text-align: center; width: 100%; max-width: 400px; }
+        .wheel-container { position: relative; width: 300px; height: 300px; margin: 20px auto; }
+        #wheel { width: 100%; height: 100%; border-radius: 50%; border: 5px solid var(--pink); transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1); overflow: hidden; }
+        .pointer { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; background: #ffca3a; clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 10; border: 1px solid #e6b422; }
+
+        .input-group { margin: 20px; display: flex; gap: 5px; }
+        input { padding: 10px; border: 2px solid var(--pink); border-radius: 20px; outline: none; flex-grow: 1; }
+        .btn-add { background: white; color: var(--pink); border: 2px solid var(--pink); padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        
+        .btn-draw { background: var(--pink); color: white; border: none; padding: 15px 40px; font-size: 1.2rem; border-radius: 30px; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        #movie-result { font-weight: bold; color: var(--dark-pink); font-size: 1.4rem; margin-top: 20px; padding: 15px; background: white; border-radius: 15px; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="hearts" id="hearts-container"></div>
+
+    <div id="game-container" style="text-align: center;">
+        <h1 id="instruction">Ułóż nasze zdjęcie! ❤️</h1>
+        <div id="puzzle-board"></div>
+    </div>
+
+    <div id="win-message">KOCHAM CIĘ! ❤️</div>
+
+    <div id="draw-section">
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <canvas id="wheel" width="300" height="300"></canvas>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="new-movie" placeholder="Dodaj film...">
+            <button class="btn-add" onclick="addMovie()">+</button>
+        </div>
+
+        <button class="btn-draw" id="spin-button" onclick="spinWheel()">ZAKRĘĆ KOŁEM! 🍿</button>
+        <div id="movie-result"></div>
+    </div>
+
+    <script>
+        let movies = ["365 dni", "Zmierzch", "50 twarzy Greya", "Fallout", "Ślub Friza", "Twój wybór!"];
+        let pieces = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+        let shuffled = [...pieces].sort(() => Math.random() - 0.5);
+        let selected = null;
+        let isGameOver = false;
+        let currentRotation = 0;
+
+        const board = document.getElementById('puzzle-board');
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+
+        function drawWheel() {
+            const size = movies.length;
+            const slice = (Math.PI * 2) / size;
+            const colors = ['#ff4d6d', '#ff758f', '#ff8fa3', '#ffb3c1', '#ffccd5', '#ffb3c1'];
+            
+            ctx.clearRect(0,0,300,300);
+            for(let i=0; i<size; i++) {
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(150,150);
+                ctx.arc(150,150,150, i*slice, (i+1)*slice);
+                ctx.fill();
+                
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(150,150);
+                ctx.rotate(i*slice + slice/2);
+                ctx.fillStyle = "white";
+                ctx.font = "bold 13px Arial";
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = "rgba(0,0,0,0.3)";
+                ctx.fillText(movies[i].substring(0,15), 60, 5);
+                ctx.restore();
+            }
+        }
+
+        function createBoard() {
+            board.innerHTML = '';
+            shuffled.forEach((val, index) => {
+                const div = document.createElement('div');
+                div.className = 'piece';
+                div.style.backgroundPosition = `-${(val % 3) * 100}px -${Math.floor(val / 3) * 100}px`;
+                if(!isGameOver) div.onclick = () => swap(index);
+                board.appendChild(div);
+            });
+        }
+
+        function swap(index) {
+            if (selected === null) {
+                selected = index;
+                board.children[index].style.border = '2px solid white';
+            } else {
+                [shuffled[selected], shuffled[index]] = [shuffled[index], shuffled[selected]];
+                selected = null;
+                createBoard();
+                checkWin();
+            }
+        }
+
+        function checkWin() {
+            if (shuffled.every((val, i) => val === i)) {
+                isGameOver = true;
+                board.classList.add('won');
+                document.getElementById('instruction').style.display = 'none';
+                document.getElementById('win-message').style.display = 'block';
+                document.getElementById('draw-section').style.display = 'block';
+                drawWheel();
+                createBoard();
+            }
+        }
+
+        function addMovie() {
+            const input = document.getElementById('new-movie');
+            if(input.value.trim() !== "") {
+                movies.push(input.value.trim());
+                input.value = "";
+                drawWheel();
+            }
+        }
+
+        function spinWheel() {
+            const btn = document.getElementById('spin-button');
+            const res = document.getElementById('movie-result');
+            btn.disabled = true;
+            
+            const extraDegrees = Math.floor(Math.random() * 360) + 1440; 
+            currentRotation += extraDegrees;
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+            setTimeout(() => {
+                btn.disabled = false;
+                const actualDeg = currentRotation % 360;
+                const sliceSize = 360 / movies.length;
+                const index = Math.floor(((360 - actualDeg + 270) % 360) / sliceSize);
+                res.style.display = 'block';
+                res.innerHTML = "🎬 Oglądamy: <br><strong>" + movies[index] + "</strong>";
+            }, 4000);
+        }
+
+        for (let i = 0; i < 20; i++) {
+            const h = document.createElement('div');
+            h.className = 'heart'; h.innerHTML = '❤️';
+            h.style.left = Math.random() * 100 + 'vw';
+            h.style.animationDuration = (Math.random() * 3 + 2) + 's';
+            document.getElementById('hearts-container').appendChild(h);
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
